@@ -6,7 +6,7 @@ google_sheets:
 
   # Path to the Google service account credentials file on disk.
   # This is the JSON file you download from Google Cloud.
-  service_account_json: "/home/luiscarlos/WeinsteinAgent/creds/gcp_service_account.json"
+  service_account_json: "/home/luiscarlosht/WeinsteinAgent/creds/gcp_service_account.json"
   client_email: "500633565449-compute@developer.gserviceaccount.com"
 
 # Email alert settings
