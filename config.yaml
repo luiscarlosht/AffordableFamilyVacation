@@ -22,7 +22,7 @@ email:
 
 # OpenAI model settings
 openai:
-  api_key: "CHANGE_ME_OPENAI_KEY"
+  api_key: "${OPENAI_API_KEY}"
   model: "gpt-5-thinking"
   # we'll hint that browsing is allowed
   extra_headers:
