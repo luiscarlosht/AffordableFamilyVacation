@@ -69,4 +69,5 @@ def read_monitors(service, cfg: dict) -> List[Dict]:
     active_rows = []
     for idx, row in enumerate(data_rows, start=2):
         row_dict = {headers[i]: (row[i] if i < len(row) else "") for i in range(len(headers))}
-        row_dict["_row_nu]()_
+        row_dict["_row_number"] = idx
+
