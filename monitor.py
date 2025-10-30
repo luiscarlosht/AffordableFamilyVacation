@@ -250,4 +250,5 @@ def extract_deals_from_gpt(raw_text: str) -> List[Dict]:
     """
     Pull a 'deals' array out of GPT response text.
     """
-    match = re.search(r'("deals"\s*:\s*\[.*?\])', raw_text, flags=re.D_*]()
+    match = re.search(r'("deals"\s*:\s*\[.*?\])', raw_text, flags=re.DOTALL)
+
