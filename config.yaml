@@ -5,7 +5,7 @@ google_sheets:
   alerts_tab: "Alerts_Log"
   runlog_tab: "Run_Log"
   service_account_json: "/home/luiscarlosht/WeinsteinAgent/creds/gcp_service_account.json"
-  client_email: "500633565449-compute@developer.gserviceaccount.com"
+  client_email: "sheets-reader@aerobic-name-475821-p3.iam.gserviceaccount.com"
 
 # Email alert settings
 email:
