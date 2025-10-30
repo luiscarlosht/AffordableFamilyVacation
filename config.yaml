@@ -3,9 +3,7 @@ google_sheets:
   sheet_id: "1qcEIA02LoL28KzUysCg_6PXDPP22p6NijOzIgOK6p3w"
   monitors_tab: "Monitors"
   alerts_tab: "Alerts_Log"
-
-  # Path to the Google service account credentials file on disk.
-  # This is the JSON file you download from Google Cloud.
+  runlog_tab: "Run_Log"
   service_account_json: "/home/luiscarlosht/WeinsteinAgent/creds/gcp_service_account.json"
   client_email: "500633565449-compute@developer.gserviceaccount.com"
 
