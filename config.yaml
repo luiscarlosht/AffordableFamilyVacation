@@ -1,23 +1,24 @@
 # Which Google Sheet to read/write
 google_sheets:
-  sheet_id: "CHANGE_ME_FLIGHT_MONITOR_SHEET_ID"
+  sheet_id: "https://docs.google.com/spreadsheets/d/1qcEIA02LoL28KzUysCg_6PXDPP22p6NijOzIgOK6p3w/edit?gid=0#gid=0/edit"
   monitors_tab: "Monitors"
   alerts_tab: "Alerts_Log"
 
   # Path to the Google service account credentials file on disk.
   # This is the JSON file you download from Google Cloud.
-  service_account_json: "/home/luiscarlos/flight_monitor/service_account.json"
+  service_account_json: "/home/luiscarlos/WeinsteinAgent/creds/gcp_service_account.json"
+  client_email: "500633565449-compute@developer.gserviceaccount.com"
 
 # Email alert settings
 email:
-  from: "CHANGE_ME_YOUR_ALERT_EMAIL@example.com"
+  from: "luiscarlosht@gmail.com"
   to:
-    - "CHANGE_ME_YOUR_PERSONAL_EMAIL@example.com"
-    - "OPTIONAL_SECOND_EMAIL@example.com"
+    - "luiscarloshernandez@hotmail.com"
+    - "luiscarlosht@gmail.com"
   smtp_host: "smtp.gmail.com"
   smtp_port: 587
-  smtp_user: "CHANGE_ME_GMAIL_LOGIN"
-  smtp_pass: "CHANGE_ME_GMAIL_APP_PASSWORD"
+  smtp_user: "luiscarlosht@gmail.com"
+  smtp_pass: "qnamoxtmakhnvlml"
 
 # OpenAI model settings
 openai:
@@ -42,4 +43,4 @@ scan_defaults:
 
 security:
   # where to write logs
-  log_file: "/home/luiscarlos/flight_monitor/monitor.log"
+  log_file: "/home/luiscarlosht/AffordableFamilyVacation/monitor/monitor.log"
