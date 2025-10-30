@@ -46,4 +46,5 @@ def get_sheets_service(cfg: dict):
 
 def read_monitors(service, cfg: dict) -> List[Dict]:
     sheet_id = cfg["google_sheets"]["sheet_id"]
-    monitors_tab = cfg["google_sheets"]["monitors_ta_]()_]()_
+    monitors_tab = cfg["google_sheets"]["monitors_tab"]
+
