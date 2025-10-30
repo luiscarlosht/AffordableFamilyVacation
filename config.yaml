@@ -1,6 +1,6 @@
 # Which Google Sheet to read/write
 google_sheets:
-  sheet_id: "https://docs.google.com/spreadsheets/d/1qcEIA02LoL28KzUysCg_6PXDPP22p6NijOzIgOK6p3w/edit?gid=0#gid=0/edit"
+  sheet_id: "https://docs.google.com/spreadsheets/d/1qcEIA02LoL28KzUysCg_6PXDPP22p6NijOzIgOK6p3w/edit?gid=0#gid=0"
   monitors_tab: "Monitors"
   alerts_tab: "Alerts_Log"
 
