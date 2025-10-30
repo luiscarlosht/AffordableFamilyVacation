@@ -1,0 +1,45 @@
+# Which Google Sheet to read/write
+google_sheets:
+  sheet_id: "CHANGE_ME_FLIGHT_MONITOR_SHEET_ID"
+  monitors_tab: "Monitors"
+  alerts_tab: "Alerts_Log"
+
+  # Path to the Google service account credentials file on disk.
+  # This is the JSON file you download from Google Cloud.
+  service_account_json: "/home/luiscarlos/flight_monitor/service_account.json"
+
+# Email alert settings
+email:
+  from: "CHANGE_ME_YOUR_ALERT_EMAIL@example.com"
+  to:
+    - "CHANGE_ME_YOUR_PERSONAL_EMAIL@example.com"
+    - "OPTIONAL_SECOND_EMAIL@example.com"
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  smtp_user: "CHANGE_ME_GMAIL_LOGIN"
+  smtp_pass: "CHANGE_ME_GMAIL_APP_PASSWORD"
+
+# OpenAI model settings
+openai:
+  api_key: "CHANGE_ME_OPENAI_KEY"
+  model: "gpt-5-thinking"
+  # we'll hint that browsing is allowed
+  extra_headers:
+    X-Allow-Browsing: "true"
+
+# Run options / policy
+scan_defaults:
+  # fallback seats if not provided in sheet row
+  default_seats: 2
+
+  # if sheet row's MaxPricePerPersonUSD is blank,
+  # we treat threshold as very high and won't alert unless it's insanely low
+  default_threshold: 9999
+
+  # airport radius logic
+  home_fallback: "Mansfield, TX"
+  default_origin_airports: ["DFW", "DAL"]
+
+security:
+  # where to write logs
+  log_file: "/home/luiscarlos/flight_monitor/monitor.log"
