@@ -1,9 +1,9 @@
 import os
-import re
 import yaml
-import datetime
 import json
+import re
 import smtplib
+import datetime
 from typing import List, Dict
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -28,7 +28,7 @@ def now_utc_iso() -> str:
 
 def load_config() -> dict:
     """
-    Load config.yaml (which already pulls OPENAI_API_KEY via ${OPENAI_API_KEY}).
+    Load config.yaml.
     """
     print("[INFO] Loading config.yaml ...")
     with open("config.yaml", "r") as f:
@@ -83,30 +83,29 @@ def read_monitors(service, cfg: dict) -> List[Dict]:
     return out
 
 
-def update_monitor_row(service, cfg: dict, row_num: int, price: str, source_site: str):
+def update_monitor_row(service, cfg: dict, row_num: int, last_price: str, last_source: str):
     """
     Write back into Monitors row:
       Col M: LastBestPricePerPerson
-      Col N: LastBestSource     (NOTE: rename this header in sheet!)
+      Col N: LastBestSource
       Col O: LastCheckedUTC
     """
     sheet_id = cfg["google_sheets"]["sheet_id"]
     tab = cfg["google_sheets"]["monitors_tab"]
     ts = now_utc_iso()
 
-    print(f"[INFO] Updating Monitors row {row_num} price={price} source_site={source_site}")
+    print(f"[INFO] Updating Monitors row {row_num} price={last_price} source_site={last_source}")
     service.spreadsheets().values().update(
         spreadsheetId=sheet_id,
         range=f"{tab}!M{row_num}:O{row_num}",
         valueInputOption="USER_ENTERED",
-        body={"values": [[price, source_site, ts]]},
+        body={"values": [[last_price, last_source, ts]]},
     ).execute()
 
 
 def append_run_log(service, cfg: dict, status: str, active_count: int, notes: str):
     """
-    Append heartbeat row to Run_Log.
-    Run_Log headers:
+    Append heartbeat row to Run_Log:
       TimestampUTC | Status | ActiveMonitorCount | Notes
     """
     run_tab = cfg["google_sheets"]["runlog_tab"]
@@ -129,19 +128,19 @@ def append_alert_to_sheet(service, cfg: dict, deal: Dict, monitor_row: Dict):
     Log a qualifying alert deal into Alerts_Log.
 
     Alerts_Log headers must be EXACTLY:
-    TimestampUTC
-    OriginUsed
-    DestinationFound
-    DepartDate
-    ReturnDate
-    Seats
-    PricePerPersonUSD
-    TotalTripUSD
-    SourceSite
-    QueryHint
-    Airline
-    SeatsAvailable
-    MonitorNotes
+    A: TimestampUTC
+    B: OriginUsed
+    C: DestinationFound
+    D: DepartDate
+    E: ReturnDate
+    F: Seats
+    G: PricePerPersonUSD
+    H: TotalTripUSD
+    I: SourceSite
+    J: QueryHint
+    K: Airline
+    L: SeatsAvailable
+    M: MonitorNotes
     """
     sheet_id = cfg["google_sheets"]["sheet_id"]
     tab = cfg["google_sheets"]["alerts_tab"]
@@ -184,7 +183,7 @@ def append_alert_to_sheet(service, cfg: dict, deal: Dict, monitor_row: Dict):
 def call_gpt_web(prompt: str, cfg: dict) -> str:
     """
     Call the OpenAI model specified in config.yaml.
-    We ask it to browse, and we REQUIRE `source_site` and `query_hint`.
+    We ask it to browse, and REQUIRE source_site and query_hint.
     """
     api_key = os.getenv("OPENAI_API_KEY") or cfg["openai"].get("api_key")
     if not api_key:
@@ -214,15 +213,15 @@ def call_gpt_web(prompt: str, cfg: dict) -> str:
                     "      \"price_per_person_usd\": 145,\n"
                     "      \"total_usd\": 435,\n"
                     "      \"seats_available\": 3,\n"
-                    "      \"source_site\": \"Google Flights\" ,\n"
+                    "      \"source_site\": \"Google Flights\",\n"
                     "      \"query_hint\": \"DFW to PHX Dec 20–26 3 travelers American Airlines\",\n"
                     "      \"booking_link\": \"https://www.google.com/flights?...\"\n"
                     "    }\n"
                     "  ]\n"
                     "}\n"
-                    "- 'source_site' MUST say where you saw the fare, e.g. 'Google Flights', 'Expedia', 'southwest.com'.\n"
-                    "- 'query_hint' MUST be a copy/paste search phrase I can manually type to reproduce it.\n"
-                    "- If no real booking link is available, set booking_link to \"\".\n"
+                    "- 'source_site' MUST say where you saw the fare (Google Flights, Expedia, southwest.com, etc.).\n"
+                    "- 'query_hint' MUST be something I can paste into that site to re-find the same fare.\n"
+                    "- If no real booking link exists, set booking_link to \"\".\n"
                     "- No commentary outside JSON."
                 ),
             },
@@ -260,31 +259,81 @@ def call_gpt_web(prompt: str, cfg: dict) -> str:
     return raw_text
 
 
+def safe_extract_deals_json(raw_text: str) -> str:
+    """
+    Attempt to extract the full top-level JSON object by balancing braces.
+    We assume the response starts with '{' and is valid JSON until the last '}'.
+    If we can't find a balanced object, return "".
+    """
+    # Find first '{'
+    start = raw_text.find("{")
+    if start == -1:
+        return ""
+
+    depth = 0
+    for i in range(start, len(raw_text)):
+        ch = raw_text[i]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                # slice inclusive of this brace
+                return raw_text[start:i+1]
+
+    # If we never got back to depth 0, it's incomplete
+    return ""
+
+
+def fallback_single_deal(raw_text: str) -> List[Dict]:
+    """
+    Fallback parser:
+    Try to pull ONLY the first deal inside "deals": [ ... ] if full JSON fails.
+    We'll use a best-effort regex to grab the first { ... } inside deals.
+    """
+    m = re.search(
+        r'"deals"\s*:\s*\[\s*(\{.*?\})',
+        raw_text,
+        flags=re.DOTALL
+    )
+    if not m:
+        return []
+
+    first_obj_txt = m.group(1)
+    try:
+        deal_obj = json.loads(first_obj_txt)
+        return [deal_obj]
+    except Exception as e:
+        print("[ERROR] fallback_single_deal JSON parse failed:", e)
+        return []
+
+
 def extract_deals_from_gpt(raw_text: str) -> List[Dict]:
     """
-    Extract a JSON object that starts with {"deals": [...]} and parse it.
+    1. Try to grab a fully balanced top-level JSON object from the model output.
+    2. json.loads it and return ["deals"].
+    3. If that fails, fallback to extracting just the first deal object.
     """
-    # Try to match a block that starts with {"deals":
-    match = re.search(r'(\{\s*"deals"\s*:\s*\[.*?\}\s*)$', raw_text, flags=re.DOTALL | re.MULTILINE)
-    if not match:
-        # fallback, more permissive
-        match = re.search(r'(\{\s*"deals"\s*:\s*\[.*?\]\s*\})', raw_text, flags=re.DOTALL)
+    balanced_json = safe_extract_deals_json(raw_text)
 
-    if not match:
-        print("[WARN] No deals JSON block matched.")
-        return []
+    if balanced_json:
+        try:
+            data = json.loads(balanced_json)
+            deals = data.get("deals", [])
+            print(f"[INFO] Parsed {len(deals)} deal(s) from balanced JSON.")
+            return deals
+        except Exception as e:
+            print("[ERROR] JSON parse failed on balanced_json:", e)
+            print("[DEBUG] balanced_json starts with:\n", balanced_json[:500])
 
-    candidate = match.group(1).strip()
-
-    try:
-        data = json.loads(candidate)
-        deals = data.get("deals", [])
-        print(f"[INFO] Parsed {len(deals)} deal(s) from model output.")
-        return deals
-    except Exception as e:
-        print("[ERROR] JSON parse failed:", e)
-        print("[DEBUG] candidate was:\n", candidate[:500])
-        return []
+    # Fallback
+    print("[WARN] Falling back to single-deal extraction.")
+    deals = fallback_single_deal(raw_text)
+    if deals:
+        print(f"[INFO] Fallback extracted {len(deals)} deal(s).")
+    else:
+        print("[WARN] Fallback also found 0 deals.")
+    return deals
 
 
 # =========================
@@ -366,7 +415,7 @@ def handle_row(service, cfg: dict, row: Dict) -> str:
 
     print(f"[INFO] Processing monitor row {rownum}: {origin} -> {dest}")
 
-    # The instruction we feed to the model as "user"
+    # User prompt that we feed the model
     prompt = (
         f"Find round-trip economy flights for {seats} travelers "
         f"from these origin airports: {origin}. "
@@ -375,7 +424,7 @@ def handle_row(service, cfg: dict, row: Dict) -> str:
         f"Return between {return_start} and {return_end}. "
         f"All prices in USD. "
         f"Only include deals with at least {seats} seats if possible. "
-        f'Remember: add "source_site" and "query_hint" in each deal.'
+        f"Remember: every deal needs source_site and query_hint."
     )
 
     # 1. Query OpenAI
@@ -383,18 +432,17 @@ def handle_row(service, cfg: dict, row: Dict) -> str:
         raw = call_gpt_web(prompt, cfg)
     except Exception as e:
         print(f"[ERROR] OpenAI request failed for row {rownum}: {e}")
-        # Still timestamp the row so we know we attempted this run
-        update_monitor_row(service, cfg, rownum, "", "ERROR: gpt_call_failed")
+        update_monitor_row(service, cfg, rownum, "", "gpt_call_failed")
         return "gpt_error"
 
-    # 2. Parse
+    # 2. Parse deals with robust extractor
     deals = extract_deals_from_gpt(raw)
     if not deals:
         print(f"[INFO] Row {rownum}: no deals parsed.")
         update_monitor_row(service, cfg, rownum, "", "no_deals_found")
         return "no_deals_found"
 
-    # 3. Pick cheapest by price_per_person_usd
+    # 3. choose cheapest by price_per_person_usd
     def price_val(d):
         try:
             return float(d.get("price_per_person_usd", 999999))
@@ -408,10 +456,10 @@ def handle_row(service, cfg: dict, row: Dict) -> str:
     best_source = best.get("source_site", "")
     print(f"[INFO] Row {rownum}: best {best.get('origin')} -> {best.get('destination')} @ {best_price} per person from {best_source}")
 
-    # 4. Update sheet row with best deal info (price + source_site + timestamp)
+    # 4. Update Monitors sheet with best observed deal info
     update_monitor_row(service, cfg, rownum, str(best_price), best_source)
 
-    # 5. Threshold check
+    # 5. Price threshold logic
     if best_price <= max_pp_val:
         print(f"[INFO] Row {rownum}: meets threshold ({best_price} <= {max_pp_val}), alerting.")
         send_email_alert(cfg, best, seats_requested=seats)
